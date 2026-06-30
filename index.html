@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a3c5e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RE Time Log">
+<title>RE Pro Time Logger</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --navy:#1a3c5e;--navy-light:#2a5282;--navy-dark:#0f2640;
+  --gold:#c9a84c;--gold-light:#e8c96a;--gold-pale:#fdf6e3;
+  --green:#1e7e34;--green-bg:#d4edda;
+  --red:#c0392b;--red-bg:#fde8e8;
+  --gray0:#f8f9fa;--gray1:#e9ecef;--gray2:#dee2e6;--gray3:#adb5bd;--gray4:#6c757d;--gray5:#343a40;
+  --white:#ffffff;
+  --radius:12px;--radius-sm:8px;
+  --shadow:0 2px 12px rgba(0,0,0,0.12);--shadow-lg:0 4px 24px rgba(0,0,0,0.18);
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--gray0);font-family:'Inter',sans-serif;font-size:16px;color:var(--gray5);overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;height:-webkit-fill-available}
+
+/* ─── TOP NAV ─────────────────────────────────── */
+.topbar{
+  background:var(--navy);
+  padding:calc(var(--safe-top) + 12px) 16px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;box-shadow:var(--shadow);
+}
+.topbar-title{color:var(--white);font-size:18px;font-weight:600;letter-spacing:-0.3px}
+.topbar-sub{color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px}
+.icon-btn{
+  width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,0.12);
+  color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;
+  transition:background 0.15s;flex-shrink:0;
+}
+.icon-btn:active{background:rgba(255,255,255,0.25)}
+
+/* ─── SCROLL AREA ─────────────────────────────── */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:16px 16px calc(80px + var(--safe-bottom))}
+
+/* ─── BOTTOM NAV ──────────────────────────────── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  padding:8px 0 calc(var(--safe-bottom) + 8px);
+  background:var(--white);border-top:1px solid var(--gray2);
+  display:flex;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,0.08);
+  flex-shrink:0;
+}
+.nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 0;border:none;background:none;cursor:pointer;
+  color:var(--gray3);font-size:10px;font-family:'Inter',sans-serif;
+  transition:color 0.15s;
+}
+.nav-item.active{color:var(--navy)}
+.nav-item svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-fab{
+  flex:none;width:56px;height:56px;margin-top:-20px;border-radius:50%;
+  background:var(--navy);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-lg);transition:transform 0.15s,background 0.15s;
+  color:var(--white);font-size:26px;
+}
+.nav-fab:active{transform:scale(0.94);background:var(--navy-dark)}
+
+/* ─── CARDS ───────────────────────────────────── */
+.card{background:var(--white);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-title{font-size:15px;font-weight:600;color:var(--gray5)}
+.card-sub{font-size:12px;color:var(--gray4)}
+
+/* ─── STAT STRIP ──────────────────────────────── */
+.stat-strip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px}
+.stat-box{background:var(--white);border-radius:var(--radius-sm);padding:12px 10px;text-align:center;box-shadow:var(--shadow)}
+.stat-num{font-size:22px;font-weight:600;color:var(--navy);line-height:1}
+.stat-label{font-size:10px;color:var(--gray4);margin-top:4px}
+
+/* ─── LOG LIST ────────────────────────────────── */
+.entry-item{
+  display:flex;align-items:flex-start;gap:12px;padding:14px 0;
+  border-bottom:1px solid var(--gray1);
+}
+.entry-item:last-child{border-bottom:none}
+.entry-dot{
+  width:36px;height:36px;border-radius:50%;background:var(--navy);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  font-size:14px;color:var(--white);margin-top:1px;
+}
+.entry-body{flex:1;min-width:0}
+.entry-activity{font-size:14px;font-weight:500;color:var(--gray5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-meta{font-size:12px;color:var(--gray4);margin-top:2px}
+.entry-property{font-size:12px;color:var(--navy);margin-top:2px;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.entry-hrs{font-size:15px;font-weight:600;color:var(--navy);flex-shrink:0;padding-top:2px}
+.entry-sync{width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0;margin-top:6px}
+.entry-sync.pending{background:var(--gold)}
+.entry-sync.error{background:var(--red)}
+
+/* ─── MODAL OVERLAY ───────────────────────────── */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  opacity:0;pointer-events:none;transition:opacity 0.25s;
+}
+.overlay.open{opacity:1;pointer-events:all}
+.sheet{
+  background:var(--white);border-radius:20px 20px 0 0;
+  padding:0 0 calc(var(--safe-bottom) + 16px);
+  max-height:92vh;overflow-y:auto;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);
+}
+.overlay.open .sheet{transform:translateY(0)}
+.sheet-handle{width:40px;height:4px;background:var(--gray2);border-radius:2px;margin:12px auto 0}
+.sheet-title{font-size:17px;font-weight:600;text-align:center;padding:16px 20px 12px;border-bottom:1px solid var(--gray1)}
+.sheet-body{padding:16px 20px}
+
+/* ─── FORM ELEMENTS ───────────────────────────── */
+.form-group{margin-bottom:16px}
+.form-label{font-size:12px;font-weight:500;color:var(--gray4);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;display:block}
+.form-input,.form-select,.form-textarea{
+  width:100%;padding:13px 14px;border:1.5px solid var(--gray2);border-radius:var(--radius-sm);
+  font-size:15px;font-family:'Inter',sans-serif;color:var(--gray5);
+  background:var(--white);transition:border-color 0.15s;outline:none;
+  -webkit-appearance:none;appearance:none;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--navy)}
+.form-textarea{resize:none;height:80px;line-height:1.5}
+.form-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236c757d' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+.time-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.date-btn{
+  width:100%;padding:13px 14px;border:1.5px solid var(--gray2);border-radius:var(--radius-sm);
+  font-size:15px;font-family:'Inter',sans-serif;color:var(--gray5);background:var(--white);
+  text-align:left;cursor:pointer;display:flex;align-items:center;gap:8px;
+}
+.date-btn:active{border-color:var(--navy)}
+.dur-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.dur-chip{
+  padding:10px 4px;border:1.5px solid var(--gray2);border-radius:var(--radius-sm);
+  font-size:13px;font-weight:500;color:var(--gray4);background:var(--white);
+  cursor:pointer;text-align:center;transition:all 0.12s;
+}
+.dur-chip.selected{border-color:var(--navy);background:var(--navy);color:var(--white)}
+
+/* ─── BUTTONS ─────────────────────────────────── */
+.btn{
+  width:100%;padding:15px;border:none;border-radius:var(--radius);
+  font-size:16px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;
+  transition:all 0.15s;
+}
+.btn-primary{background:var(--navy);color:var(--white)}
+.btn-primary:active{background:var(--navy-dark);transform:scale(0.98)}
+.btn-secondary{background:var(--gray0);color:var(--gray5);border:1px solid var(--gray2)}
+.btn-danger{background:var(--red-bg);color:var(--red)}
+.btn-sm{padding:10px 16px;font-size:14px;width:auto}
+.btn-gold{background:var(--gold);color:var(--white)}
+.btn-gold:active{background:#b8933e}
+
+/* ─── SETTINGS ────────────────────────────────── */
+.settings-section{margin-bottom:24px}
+.settings-section-title{font-size:11px;font-weight:600;color:var(--gray3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;padding:0 4px}
+.settings-row{
+  background:var(--white);border-radius:var(--radius-sm);margin-bottom:2px;
+  padding:15px 16px;display:flex;align-items:center;gap:12px;
+  cursor:pointer;transition:background 0.12s;
+}
+.settings-row:active{background:var(--gray0)}
+.settings-row:first-child{border-radius:var(--radius-sm) var(--radius-sm) 0 0}
+.settings-row:last-child{border-radius:0 0 var(--radius-sm) var(--radius-sm)}
+.settings-row:only-child{border-radius:var(--radius-sm)}
+.settings-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.settings-icon.blue{background:#dbeafe}
+.settings-icon.green{background:#d4edda}
+.settings-icon.gold{background:#fef3c7}
+.settings-icon.red{background:#fde8e8}
+.settings-icon.purple{background:#ede9fe}
+.settings-text{flex:1}
+.settings-label{font-size:15px;font-weight:500;color:var(--gray5)}
+.settings-desc{font-size:12px;color:var(--gray4);margin-top:1px}
+.settings-arrow{color:var(--gray3);font-size:18px}
+.settings-badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.badge-connected{background:var(--green-bg);color:var(--green)}
+.badge-disconnected{background:var(--red-bg);color:var(--red)}
+.badge-pending{background:var(--gold-pale);color:#92400e}
+
+/* ─── CALENDAR STRIP ──────────────────────────── */
+.cal-strip{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.cal-strip::-webkit-scrollbar{display:none}
+.cal-day{
+  flex-shrink:0;width:50px;height:64px;border-radius:var(--radius-sm);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;cursor:pointer;border:1.5px solid var(--gray2);background:var(--white);
+  transition:all 0.12s;
+}
+.cal-day.today{border-color:var(--navy)}
+.cal-day.active{background:var(--navy);border-color:var(--navy)}
+.cal-day.has-entry::after{content:'';display:block;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+.cal-day.active.has-entry::after{background:rgba(255,255,255,0.7)}
+.cal-day-name{font-size:10px;color:var(--gray4);font-weight:500}
+.cal-day.active .cal-day-name,.cal-day.active .cal-day-num{color:var(--white)}
+.cal-day-num{font-size:17px;font-weight:600;color:var(--gray5)}
+
+/* ─── MONTH PICKER ────────────────────────────── */
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.month-nav-btn{width:36px;height:36px;border-radius:50%;border:1px solid var(--gray2);background:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.month-nav-btn:active{background:var(--gray1)}
+.month-label{font-size:16px;font-weight:600;color:var(--gray5)}
+
+/* ─── BADGE ───────────────────────────────────── */
+.sync-status{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-flex;align-items:center;gap:4px}
+.sync-status.ok{background:var(--green-bg);color:var(--green)}
+.sync-status.pending{background:var(--gold-pale);color:#92400e}
+.sync-status.error{background:var(--red-bg);color:var(--red)}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* ─── EMPTY STATE ─────────────────────────────── */
+.empty{text-align:center;padding:48px 24px;color:var(--gray4)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+.empty-title{font-size:16px;font-weight:600;color:var(--gray5);margin-bottom:6px}
+.empty-body{font-size:14px;line-height:1.5}
+
+/* ─── ACTIVITY ICONS ──────────────────────────── */
+.activity-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.activity-chip{
+  padding:12px 10px;border:1.5px solid var(--gray2);border-radius:var(--radius-sm);
+  font-size:13px;font-weight:500;color:var(--gray4);background:var(--white);
+  cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;
+  transition:all 0.12s;
+}
+.activity-chip.selected{border-color:var(--navy);background:var(--navy);color:var(--white)}
+.activity-chip-icon{font-size:18px;flex-shrink:0}
+
+/* ─── TOAST ───────────────────────────────────── */
+.toast{
+  position:fixed;top:calc(var(--safe-top) + 70px);left:50%;transform:translateX(-50%) translateY(-20px);
+  background:var(--gray5);color:var(--white);padding:10px 20px;border-radius:24px;
+  font-size:13px;font-weight:500;z-index:999;opacity:0;transition:all 0.25s;
+  white-space:nowrap;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:var(--green)}
+.toast.error{background:var(--red)}
+
+/* ─── GOOGLE CONNECT ──────────────────────────── */
+.google-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;padding:13px;border:1.5px solid var(--gray2);border-radius:var(--radius-sm);
+  background:var(--white);font-size:15px;font-weight:500;cursor:pointer;
+  font-family:'Inter',sans-serif;color:var(--gray5);transition:all 0.15s;
+}
+.google-btn:active{background:var(--gray0)}
+.google-logo{width:20px;height:20px}
+
+/* ─── REPORT ROWS ─────────────────────────────── */
+.report-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray1)}
+.report-row:last-child{border-bottom:none}
+.report-activity{font-size:14px;color:var(--gray5);font-weight:500}
+.report-pct{font-size:12px;color:var(--gray4)}
+.report-hrs{font-size:14px;font-weight:600;color:var(--navy)}
+.progress-bar{height:4px;background:var(--gray1);border-radius:2px;margin-top:4px;overflow:hidden}
+.progress-fill{height:100%;background:var(--navy);border-radius:2px;transition:width 0.5s}
+
+/* ─── UTIL ────────────────────────────────────── */
+.flex-center{display:flex;align-items:center;justify-content:center}
+.gap-8{gap:8px}
+.mb-12{margin-bottom:12px}
+.mt-16{margin-top:16px}
+.text-sm{font-size:13px}
+.text-muted{color:var(--gray4)}
+.divider{height:1px;background:var(--gray1);margin:12px 0}
+
+/* ─── SCREEN TRANSITIONS ──────────────────────── */
+.screen{display:none;flex-direction:column;height:100%}
+.screen.active{display:flex}
+.scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ─── GOOGLE OAUTH MODAL ──────────────────────── */
+.oauth-info{background:var(--gray0);border-radius:var(--radius-sm);padding:14px;margin-top:12px;font-size:13px;color:var(--gray4);line-height:1.6}
+.oauth-info strong{color:var(--gray5)}
+.connected-user{display:flex;align-items:center;gap:12px;padding:14px;background:var(--green-bg);border-radius:var(--radius-sm);margin-bottom:16px}
+.connected-avatar{width:40px;height:40px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--white);font-weight:600;flex-shrink:0}
+.connected-info-text{flex:1}
+.connected-name{font-size:14px;font-weight:600;color:var(--green)}
+.connected-email{font-size:12px;color:var(--gray4)}
+
+.sheet-id-area{margin-top:12px}
+
+/* Dark mode nav strip fix */
+@media (prefers-color-scheme: dark){
+  :root{--gray0:#111214;--gray1:#1e2125;--gray2:#2c3035;--gray3:#6c757d;--gray4:#9ca3af;--gray5:#f3f4f6;--white:#1a1d21}
+  .settings-row:active{background:var(--gray1)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ════════════════════════════════════════════════
+     SCREEN: LOG (Home)
+════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-log">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">RE Time Log</div>
+      <div class="topbar-sub" id="header-year">2026 · Real Estate Professional</div>
+    </div>
+    <div id="sync-indicator" class="sync-status pending" style="font-size:11px">
+      <span class="sync-dot"></span><span id="sync-label">Not connected</span>
+    </div>
+  </div>
+
+  <div class="scroll-area">
+    <!-- Stat strip -->
+    <div class="stat-strip mt-16" style="margin-top:16px">
+      <div class="stat-box">
+        <div class="stat-num" id="stat-today">0</div>
+        <div class="stat-label">Today hrs</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-week">0</div>
+        <div class="stat-label">This week</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" id="stat-year">0</div>
+        <div class="stat-label">YTD hrs</div>
+      </div>
+    </div>
+
+    <!-- Calendar strip -->
+    <div class="card" style="padding:14px 14px 10px">
+      <div class="month-nav">
+        <button class="month-nav-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="month-label" id="cal-month-label"></span>
+        <button class="month-nav-btn" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="cal-strip" id="cal-strip"></div>
+    </div>
+
+    <!-- Entry list for selected date -->
+    <div class="card" id="entries-card">
+      <div class="card-header">
+        <span class="card-title" id="entries-date-label">Today</span>
+        <span class="card-sub" id="entries-count">0 entries</span>
+      </div>
+      <div id="entries-list">
+        <div class="empty">
+          <div class="empty-icon">📋</div>
+          <div class="empty-title">No entries yet</div>
+          <div class="empty-body">Tap + to log time for this date</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SCREEN: REPORT
+════════════════════════════════════════════════ -->
+<div class="screen" id="screen-report">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Reports</div>
+      <div class="topbar-sub">IRS real estate professional status</div>
+    </div>
+  </div>
+
+  <div class="scroll-area" style="padding:16px 16px 90px">
+    <!-- Year total hero -->
+    <div style="background:var(--navy);border-radius:var(--radius);padding:20px;margin-bottom:12px;text-align:center">
+      <div style="color:rgba(255,255,255,0.7);font-size:12px;margin-bottom:6px">TOTAL HOURS <span id="report-year-label">2026</span></div>
+      <div style="color:var(--white);font-size:44px;font-weight:700;line-height:1" id="report-total-hrs">0</div>
+      <div style="color:rgba(255,255,255,0.6);font-size:13px;margin-top:6px">of 750 hrs IRS threshold</div>
+      <div style="background:rgba(255,255,255,0.15);border-radius:4px;height:8px;margin:14px 0 4px;overflow:hidden">
+        <div id="irs-bar" style="height:100%;background:var(--gold);border-radius:4px;transition:width 0.6s;width:0%"></div>
+      </div>
+      <div style="color:rgba(255,255,255,0.5);font-size:11px" id="irs-pct-label">0% of IRS threshold met</div>
+    </div>
+
+    <!-- Monthly breakdown -->
+    <div class="card" id="monthly-report-card">
+      <div class="card-title mb-12">Monthly breakdown</div>
+      <div id="monthly-report-list">
+        <div class="text-muted text-sm" style="text-align:center;padding:20px 0">No entries logged yet</div>
+      </div>
+    </div>
+
+    <!-- By activity -->
+    <div class="card" id="activity-report-card">
+      <div class="card-title mb-12">By activity type</div>
+      <div id="activity-report-list">
+        <div class="text-muted text-sm" style="text-align:center;padding:20px 0">No entries logged yet</div>
+      </div>
+    </div>
+
+    <!-- Export note -->
+    <div class="card" style="background:var(--gold-pale);border:1px solid #e8c96a">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:22px">📊</span>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:#92400e;margin-bottom:4px">All data saved to Google Sheets</div>
+          <div style="font-size:12px;color:#78350f;line-height:1.5">Every entry is automatically backed up to your connected Google Sheet — ready for your tax professional at year end.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SCREEN: SETTINGS
+════════════════════════════════════════════════ -->
+<div class="screen" id="screen-settings">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title">Settings</div>
+      <div class="topbar-sub">Account & preferences</div>
+    </div>
+  </div>
+
+  <div class="scroll-area" style="padding:16px 16px 90px">
+
+    <!-- Google Account -->
+    <div class="settings-section">
+      <div class="settings-section-title">Google account</div>
+      <div class="settings-row" onclick="openGoogleSheet('connect')">
+        <div class="settings-icon green">🔗</div>
+        <div class="settings-text">
+          <div class="settings-label">Google Sheets sync</div>
+          <div class="settings-desc" id="sheets-status-desc">Connect to auto-sync entries</div>
+        </div>
+        <span id="sheets-badge" class="settings-badge badge-disconnected">Disconnected</span>
+      </div>
+      <div class="settings-row" onclick="openSheetPicker()">
+        <div class="settings-icon blue">📄</div>
+        <div class="settings-text">
+          <div class="settings-label">Target spreadsheet</div>
+          <div class="settings-desc" id="sheet-name-desc">No sheet selected</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+
+    <!-- User Info -->
+    <div class="settings-section">
+      <div class="settings-section-title">Your information</div>
+      <div class="settings-row" onclick="openEditName()">
+        <div class="settings-icon purple">👤</div>
+        <div class="settings-text">
+          <div class="settings-label">Your name</div>
+          <div class="settings-desc" id="user-name-display">Tap to set</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-row" onclick="openEditProperties()">
+        <div class="settings-icon gold">🏠</div>
+        <div class="settings-text">
+          <div class="settings-label">Properties / projects</div>
+          <div class="settings-desc" id="properties-desc">Add your properties for quick selection</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+
+    <!-- Tax Info -->
+    <div class="settings-section">
+      <div class="settings-section-title">Tax year settings</div>
+      <div class="settings-row" onclick="openTaxYear()">
+        <div class="settings-icon red">📅</div>
+        <div class="settings-text">
+          <div class="settings-label">Tax year</div>
+          <div class="settings-desc" id="tax-year-desc">2026</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-row" onclick="openIrsThreshold()">
+        <div class="settings-icon red">⚖️</div>
+        <div class="settings-text">
+          <div class="settings-label">IRS hour threshold</div>
+          <div class="settings-desc" id="irs-threshold-desc">750 hours (RE professional status)</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+
+    <!-- Data -->
+    <div class="settings-section">
+      <div class="settings-section-title">Data</div>
+      <div class="settings-row" onclick="forceSyncAll()">
+        <div class="settings-icon green">☁️</div>
+        <div class="settings-text">
+          <div class="settings-label">Sync all entries now</div>
+          <div class="settings-desc">Push all local data to Google Sheets</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-row" onclick="exportCSV()">
+        <div class="settings-icon blue">📤</div>
+        <div class="settings-text">
+          <div class="settings-label">Export CSV</div>
+          <div class="settings-desc">Download all entries as a CSV file</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+      <div class="settings-row" onclick="clearAllData()">
+        <div class="settings-icon red">🗑️</div>
+        <div class="settings-text">
+          <div class="settings-label">Clear all data</div>
+          <div class="settings-desc">Remove all local entries (Sheets data kept)</div>
+        </div>
+        <span class="settings-arrow">›</span>
+      </div>
+    </div>
+
+    <div style="text-align:center;font-size:11px;color:var(--gray3);padding:8px 0 8px">
+      RE Pro Time Logger · v1.0<br>For tax documentation purposes
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     BOTTOM NAV
+════════════════════════════════════════════════ -->
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-log" onclick="switchScreen('log')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Log
+  </button>
+  <button class="nav-item" id="nav-add" onclick="openAddEntry()" style="flex:none;padding:0 20px">
+    <div class="nav-fab">＋</div>
+  </button>
+  <button class="nav-item" id="nav-report" onclick="switchScreen('report')">
+    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Reports
+  </button>
+</nav>
+
+<!-- Settings floating button -->
+<button class="icon-btn" onclick="switchScreen('settings')" style="position:fixed;bottom:calc(var(--safe-bottom)+14px);right:16px;z-index:101;background:var(--gray1);color:var(--gray5)">⚙</button>
+
+</div><!-- #app -->
+
+<!-- ════════════════════════════════════════════════
+     MODAL: ADD ENTRY
+════════════════════════════════════════════════ -->
+<div class="overlay" id="overlay-add">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Log time entry</div>
+    <div class="sheet-body">
+
+      <!-- Date -->
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <button class="date-btn" onclick="openDatePicker()">
+          📅 <span id="entry-date-label">Today</span>
+        </button>
+        <input type="date" id="entry-date" style="position:absolute;opacity:0;pointer-events:none">
+      </div>
+
+      <!-- Activity type -->
+      <div class="form-group">
+        <label class="form-label">Activity type</label>
+        <div class="activity-grid" id="activity-grid"></div>
+      </div>
+
+      <!-- Property -->
+      <div class="form-group">
+        <label class="form-label">Property / project</label>
+        <select class="form-select" id="entry-property">
+          <option value="">— Select property —</option>
+        </select>
+      </div>
+
+      <!-- Time range -->
+      <div class="form-group">
+        <label class="form-label">Time (optional)</label>
+        <div class="time-row">
+          <input type="time" class="form-input" id="entry-start" placeholder="Start">
+          <input type="time" class="form-input" id="entry-end" placeholder="End">
+        </div>
+      </div>
+
+      <!-- Duration -->
+      <div class="form-group">
+        <label class="form-label">Duration (hours)</label>
+        <div class="dur-grid" id="dur-grid"></div>
+        <input type="number" class="form-input" id="entry-hours" placeholder="Or enter exact hours (e.g. 1.5)" step="0.25" min="0.25" max="24" style="margin-top:8px">
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="entry-notes" placeholder="Describe the work performed (for IRS documentation)…"></textarea>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveEntry()" style="margin-top:4px">Save entry</button>
+      <button class="btn btn-secondary" onclick="closeOverlay('overlay-add')" style="margin-top:8px">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL: GOOGLE SHEETS SETUP
+════════════════════════════════════════════════ -->
+<div class="overlay" id="overlay-google">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Google Sheets setup</div>
+    <div class="sheet-body">
+
+      <div id="google-not-connected">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:48px;margin-bottom:8px">📊</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Connect Google Sheets</div>
+          <div style="font-size:13px;color:var(--gray4);line-height:1.5">Every time entry will be automatically saved to a Google Sheet for tax record keeping.</div>
+        </div>
+
+        <button class="google-btn" onclick="startGoogleOAuth()">
+          <svg class="google-logo" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3c-1.5 4-5.4 7-11.3 7a12 12 0 010-24c3.1 0 5.8 1.1 8 2.9l5.7-5.7A20 20 0 1044 24c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8A12 12 0 0124 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7A20 20 0 006.3 14.7z"/><path fill="#4CAF50" d="M24 44a20 20 0 0013.4-5.2l-6.2-5.2A12 12 0 0124 36c-5.8 0-10.8-4-11.3-9.4l-6.6 4.8A20 20 0 0024 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3a12 12 0 01-4.4 5.6l6.2 5.2C40.8 36.4 44 30.6 44 24c0-1.4-.1-2.7-.4-4z"/></svg>
+          Sign in with Google
+        </button>
+
+        <div class="oauth-info">
+          <strong>How it works:</strong><br>
+          1. Tap "Sign in with Google" — your browser opens Google's login page.<br>
+          2. Authorize access to Google Sheets (read/write).<br>
+          3. Paste your Sheet ID below, or create a new sheet.<br>
+          4. Every entry syncs automatically in the background.
+        </div>
+      </div>
+
+      <div id="google-connected" style="display:none">
+        <div class="connected-user">
+          <div class="connected-avatar" id="google-avatar-initials">?</div>
+          <div class="connected-info-text">
+            <div class="connected-name" id="google-user-name">Connected</div>
+            <div class="connected-email" id="google-user-email"></div>
+          </div>
+          <span style="color:var(--green);font-size:20px">✓</span>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="disconnectGoogle()" style="margin-bottom:16px">Disconnect Google account</button>
+      </div>
+
+      <!-- Sheet ID section (always shown once connected, or can be set manually) -->
+      <div class="sheet-id-area">
+        <div class="form-group" style="margin-bottom:8px">
+          <label class="form-label">Google Sheet ID</label>
+          <input type="text" class="form-input" id="sheet-id-input" placeholder="Paste your Google Sheet ID here">
+        </div>
+        <div style="font-size:12px;color:var(--gray4);line-height:1.5;margin-bottom:12px">
+          Find it in your sheet URL:<br>
+          <code style="font-size:11px;background:var(--gray1);padding:2px 6px;border-radius:4px">docs.google.com/spreadsheets/d/<strong style="color:var(--navy)">SHEET_ID_HERE</strong>/edit</code>
+        </div>
+        <button class="btn btn-gold" onclick="openCreateSheet()">Create a new sheet for me ↗</button>
+        <div style="margin-top:8px"></div>
+        <button class="btn btn-primary" onclick="saveSheetSettings()">Save & test connection</button>
+      </div>
+
+      <button class="btn btn-secondary" onclick="closeOverlay('overlay-google')" style="margin-top:8px">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL: EDIT NAME
+════════════════════════════════════════════════ -->
+<div class="overlay" id="overlay-name">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Your name</div>
+    <div class="sheet-body">
+      <div class="form-group">
+        <label class="form-label">Full name</label>
+        <input type="text" class="form-input" id="name-input" placeholder="Enter your name">
+      </div>
+      <button class="btn btn-primary" onclick="saveName()">Save</button>
+      <button class="btn btn-secondary" onclick="closeOverlay('overlay-name')" style="margin-top:8px">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════
+     MODAL: PROPERTIES
+════════════════════════════════════════════════ -->
+<div class="overlay" id="overlay-properties">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Properties / projects</div>
+    <div class="sheet-body">
+      <div style="font-size:13px;color:var(--gray4);margin-bottom:12px">Add the properties or projects you work on. These appear in the entry form for quick selection.</div>
+      <div id="properties-list" style="margin-bottom:12px"></div>
+      <div class="time-row" style="margin-bottom:8px">
+        <input type="text" class="form-input" id="new-property-input" placeholder="e.g. 123 Main St rental">
+        <button class="btn btn-primary btn-sm" onclick="addProperty()">Add</button>
+      </div>
+      <button class="btn btn-secondary" onclick="closeOverlay('overlay-properties')" style="margin-top:8px">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+const ACTIVITIES = [
+  { id:'management',    label:'Property mgmt',  icon:'🏢' },
+  { id:'maintenance',   label:'Maintenance',     icon:'🔧' },
+  { id:'leasing',       label:'Leasing/tenant',  icon:'📋' },
+  { id:'acquisition',   label:'Acquisition',     icon:'🔍' },
+  { id:'development',   label:'Development',     icon:'🏗️' },
+  { id:'bookkeeping',   label:'Bookkeeping',     icon:'📒' },
+  { id:'travel',        label:'Travel (RE)',      icon:'🚗' },
+  { id:'education',     label:'Education/CE',    icon:'📚' },
+  { id:'meeting',       label:'Meetings',         icon:'🤝' },
+  { id:'advertising',   label:'Advertising',     icon:'📣' },
+];
+
+const DUR_CHIPS = [0.5, 1, 1.5, 2, 3, 4, 6, 8];
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS = ['S','M','T','W','T','F','S'];
+
+let state = {
+  entries: [],
+  settings: {
+    userName: '',
+    taxYear: new Date().getFullYear(),
+    irsThreshold: 750,
+    properties: [],
+    sheetId: '',
+    googleConnected: false,
+    googleUser: null,
+    accessToken: null,
+  },
+  ui: {
+    selectedDate: todayStr(),
+    calYear: new Date().getFullYear(),
+    calMonth: new Date().getMonth(),
+    selectedActivity: '',
+    selectedDur: null,
+  }
+};
+
+// ════════════════════════════════════════════════
+// PERSISTENCE
+// ════════════════════════════════════════════════
+function save() {
+  try { localStorage.setItem('re_entries', JSON.stringify(state.entries)); } catch(e){}
+  try { localStorage.setItem('re_settings', JSON.stringify(state.settings)); } catch(e){}
+}
+
+function load() {
+  try {
+    const e = localStorage.getItem('re_entries');
+    if (e) state.entries = JSON.parse(e);
+  } catch(e){}
+  try {
+    const s = localStorage.getItem('re_settings');
+    if (s) state.settings = Object.assign(state.settings, JSON.parse(s));
+  } catch(e){}
+}
+
+// ════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return `${MONTHS[m-1]} ${d}, ${y}`;
+}
+
+function fmtDateShort(dateStr) {
+  if (!dateStr) return '';
+  const [y,m,d] = dateStr.split('-').map(Number);
+  return `${MONTH_SHORT[m-1]} ${d}`;
+}
+
+function activityLabel(id) {
+  const a = ACTIVITIES.find(x=>x.id===id);
+  return a ? a.label : id;
+}
+
+function activityIcon(id) {
+  const a = ACTIVITIES.find(x=>x.id===id);
+  return a ? a.icon : '📌';
+}
+
+function hoursForDate(dateStr) {
+  return state.entries
+    .filter(e=>e.date===dateStr)
+    .reduce((s,e)=>s+(e.hours||0),0);
+}
+
+function hoursForWeek() {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now); monday.setDate(now.getDate() - day);
+  let total = 0;
+  for(let i=0;i<7;i++){
+    const d = new Date(monday); d.setDate(monday.getDate()+i);
+    total += hoursForDate(d.toISOString().slice(0,10));
+  }
+  return total;
+}
+
+function hoursForYear(year) {
+  return state.entries
+    .filter(e=>e.date && e.date.startsWith(String(year)))
+    .reduce((s,e)=>s+(e.hours||0),0);
+}
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (type?' '+type:'');
+  setTimeout(()=>t.className='toast',2800);
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+// ════════════════════════════════════════════════
+// SCREEN SWITCHING
+// ════════════════════════════════════════════════
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  ['log','report'].forEach(n=>{
+    const el = document.getElementById('nav-'+n);
+    if(el) el.classList.toggle('active', n===name);
+  });
+  if(name==='report') renderReport();
+  if(name==='log') renderAll();
+  if(name==='settings') renderSettingsPage();
+}
+
+// ════════════════════════════════════════════════
+// OVERLAYS
+// ════════════════════════════════════════════════
+function openOverlay(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeOverlay(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+document.querySelectorAll('.overlay').forEach(o=>{
+  o.addEventListener('click', e=>{
+    if(e.target===o) closeOverlay(o.id);
+  });
+});
+
+// ════════════════════════════════════════════════
+// CALENDAR
+// ════════════════════════════════════════════════
+function changeMonth(dir) {
+  state.ui.calMonth += dir;
+  if(state.ui.calMonth > 11) { state.ui.calMonth = 0; state.ui.calYear++; }
+  if(state.ui.calMonth < 0) { state.ui.calMonth = 11; state.ui.calYear--; }
+  renderCalendar();
+}
+
+function selectDate(dateStr) {
+  state.ui.selectedDate = dateStr;
+  renderCalendar();
+  renderEntries();
+}
+
+function renderCalendar() {
+  const { calYear, calMonth } = state.ui;
+  document.getElementById('cal-month-label').textContent = `${MONTHS[calMonth]} ${calYear}`;
+  const strip = document.getElementById('cal-strip');
+  strip.innerHTML = '';
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const today = todayStr();
+
+  for(let d=1; d<=daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(calYear, calMonth, d).getDay();
+    const hasEntry = state.entries.some(e=>e.date===dateStr);
+
+    const el = document.createElement('div');
+    el.className = 'cal-day';
+    if(dateStr===today) el.classList.add('today');
+    if(dateStr===state.ui.selectedDate) el.classList.add('active');
+    if(hasEntry) el.classList.add('has-entry');
+    el.innerHTML = `<span class="cal-day-name">${DAYS[dow]}</span><span class="cal-day-num">${d}</span>`;
+    el.onclick = ()=>selectDate(dateStr);
+    strip.appendChild(el);
+  }
+
+  // scroll selected day into view
+  setTimeout(()=>{
+    const active = strip.querySelector('.active');
+    if(active) active.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+  },50);
+}
+
+// ════════════════════════════════════════════════
+// ENTRIES LIST
+// ════════════════════════════════════════════════
+function renderEntries() {
+  const date = state.ui.selectedDate;
+  const entries = state.entries.filter(e=>e.date===date);
+  const isToday = date === todayStr();
+
+  document.getElementById('entries-date-label').textContent =
+    isToday ? 'Today — '+fmtDateShort(date) : fmtDate(date);
+  document.getElementById('entries-count').textContent =
+    entries.length === 0 ? 'No entries' : `${entries.length} entr${entries.length===1?'y':'ies'} · ${entries.reduce((s,e)=>s+(e.hours||0),0).toFixed(1)} hrs`;
+
+  const list = document.getElementById('entries-list');
+  if(entries.length===0){
+    list.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No entries for this date</div><div class="empty-body">Tap + to log time</div></div>`;
+    return;
+  }
+
+  list.innerHTML = entries.sort((a,b)=>b.createdAt-a.createdAt).map(e=>`
+    <div class="entry-item">
+      <div class="entry-dot">${activityIcon(e.activity)}</div>
+      <div class="entry-body">
+        <div class="entry-activity">${activityLabel(e.activity)}</div>
+        ${e.property?`<div class="entry-property">📍 ${e.property}</div>`:''}
+        <div class="entry-meta">${e.startTime&&e.endTime?e.startTime+'–'+e.endTime+' · ':''} ${e.notes||'No notes'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="entry-hrs">${(e.hours||0).toFixed(1)}</div>
+        <div class="entry-sync ${e.synced?'':'pending'}" title="${e.synced?'Synced':'Pending sync'}"></div>
+        <button onclick="deleteEntry('${e.id}')" style="border:none;background:none;color:var(--gray3);font-size:18px;cursor:pointer;padding:0">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteEntry(id) {
+  if(!confirm('Delete this entry?')) return;
+  state.entries = state.entries.filter(e=>e.id!==id);
+  save();
+  renderAll();
+  showToast('Entry deleted');
+}
+
+// ════════════════════════════════════════════════
+// STATS
+// ════════════════════════════════════════════════
+function renderStats() {
+  const today = hoursForDate(todayStr());
+  const week = hoursForWeek();
+  const year = hoursForYear(state.settings.taxYear);
+  document.getElementById('stat-today').textContent = today.toFixed(1);
+  document.getElementById('stat-week').textContent = week.toFixed(1);
+  document.getElementById('stat-year').textContent = year.toFixed(0);
+  document.getElementById('header-year').textContent = `${state.settings.taxYear} · Real Estate Professional`;
+}
+
+function renderAll() {
+  renderStats();
+  renderCalendar();
+  renderEntries();
+  renderSyncStatus();
+}
+
+function renderSyncStatus() {
+  const ind = document.getElementById('sync-indicator');
+  const lbl = document.getElementById('sync-label');
+  const pending = state.entries.filter(e=>!e.synced).length;
+  if(!state.settings.googleConnected || !state.settings.sheetId) {
+    ind.className = 'sync-status error';
+    lbl.textContent = 'Not connected';
+  } else if(pending>0) {
+    ind.className = 'sync-status pending';
+    lbl.textContent = `${pending} pending`;
+  } else {
+    ind.className = 'sync-status ok';
+    lbl.textContent = 'Synced';
+  }
+}
+
+// ════════════════════════════════════════════════
+// ADD ENTRY FORM
+// ════════════════════════════════════════════════
+function openAddEntry() {
+  // Reset form
+  state.ui.selectedActivity = '';
+  state.ui.selectedDur = null;
+  document.getElementById('entry-date').value = state.ui.selectedDate;
+  document.getElementById('entry-date-label').textContent =
+    state.ui.selectedDate === todayStr() ? 'Today — '+fmtDateShort(state.ui.selectedDate) : fmtDate(state.ui.selectedDate);
+  document.getElementById('entry-start').value = '';
+  document.getElementById('entry-end').value = '';
+  document.getElementById('entry-hours').value = '';
+  document.getElementById('entry-notes').value = '';
+
+  // Rebuild activity grid
+  const grid = document.getElementById('activity-grid');
+  grid.innerHTML = ACTIVITIES.map(a=>`
+    <button class="activity-chip" onclick="selectActivity('${a.id}',this)">
+      <span class="activity-chip-icon">${a.icon}</span>${a.label}
+    </button>
+  `).join('');
+
+  // Rebuild duration chips
+  const durGrid = document.getElementById('dur-grid');
+  durGrid.innerHTML = DUR_CHIPS.map(h=>`
+    <button class="dur-chip" onclick="selectDur(${h},this)">${h}h</button>
+  `).join('');
+
+  // Populate properties
+  const sel = document.getElementById('entry-property');
+  sel.innerHTML = '<option value="">— Select property —</option>' +
+    state.settings.properties.map(p=>`<option value="${p}">${p}</option>`).join('');
+  if(state.settings.properties.length===0){
+    const opt = document.createElement('option');
+    opt.value='__other'; opt.textContent='Other (type in notes)';
+    sel.appendChild(opt);
+  }
+
+  // Time auto-calc
+  document.getElementById('entry-start').addEventListener('change', autoCalcDur);
+  document.getElementById('entry-end').addEventListener('change', autoCalcDur);
+
+  openOverlay('overlay-add');
+}
+
+function autoCalcDur() {
+  const s = document.getElementById('entry-start').value;
+  const e = document.getElementById('entry-end').value;
+  if(s && e) {
+    const [sh,sm] = s.split(':').map(Number);
+    const [eh,em] = e.split(':').map(Number);
+    let mins = (eh*60+em) - (sh*60+sm);
+    if(mins > 0) {
+      document.getElementById('entry-hours').value = (mins/60).toFixed(2);
+    }
+  }
+}
+
+function openDatePicker() {
+  const inp = document.getElementById('entry-date');
+  inp.style.position='fixed';inp.style.top='50%';inp.style.left='50%';inp.style.opacity='0';inp.style.pointerEvents='all';
+  inp.focus();inp.click();
+  inp.onchange = ()=>{
+    state.ui.selectedDate = inp.value;
+    document.getElementById('entry-date-label').textContent = fmtDate(inp.value);
+    inp.style.pointerEvents='none';
+  };
+}
+
+function selectActivity(id, btn) {
+  state.ui.selectedActivity = id;
+  document.querySelectorAll('.activity-chip').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function selectDur(h, btn) {
+  state.ui.selectedDur = h;
+  document.querySelectorAll('.dur-chip').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('entry-hours').value = h;
+}
+
+async function saveEntry() {
+  if(!state.ui.selectedActivity) { showToast('Select an activity type','error'); return; }
+  const hours = parseFloat(document.getElementById('entry-hours').value);
+  if(!hours || hours<=0) { showToast('Enter duration in hours','error'); return; }
+
+  const entry = {
+    id: genId(),
+    date: document.getElementById('entry-date').value || todayStr(),
+    activity: state.ui.selectedActivity,
+    property: document.getElementById('entry-property').value || '',
+    startTime: document.getElementById('entry-start').value || '',
+    endTime: document.getElementById('entry-end').value || '',
+    hours: hours,
+    notes: document.getElementById('entry-notes').value.trim(),
+    createdAt: Date.now(),
+    synced: false,
+    syncError: null,
+  };
+
+  state.entries.push(entry);
+  save();
+  closeOverlay('overlay-add');
+  renderAll();
+  showToast('Entry saved ✓','success');
+
+  // Try to sync
+  if(state.settings.googleConnected && state.settings.sheetId && state.settings.accessToken) {
+    syncEntry(entry);
+  }
+}
+
+// ════════════════════════════════════════════════
+// GOOGLE SHEETS SYNC
+// ════════════════════════════════════════════════
+const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
+const HEADER_ROW = ['Date','Day of Week','Activity Type','Property/Project','Start Time','End Time','Hours','Notes','Entry ID','Logged At'];
+
+async function ensureHeader() {
+  if(!state.settings.sheetId || !state.settings.accessToken) return;
+  try {
+    const r = await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A1:J1`,{
+      headers:{Authorization:`Bearer ${state.settings.accessToken}`}
+    });
+    const d = await r.json();
+    if(!d.values || !d.values[0] || d.values[0][0]!=='Date') {
+      await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A1:J1?valueInputOption=RAW`,{
+        method:'PUT',
+        headers:{Authorization:`Bearer ${state.settings.accessToken}`,'Content-Type':'application/json'},
+        body:JSON.stringify({values:[HEADER_ROW]})
+      });
+    }
+  } catch(e){}
+}
+
+async function syncEntry(entry) {
+  if(!state.settings.accessToken || !state.settings.sheetId) return;
+  await ensureHeader();
+  try {
+    const date = new Date(entry.date+'T12:00:00');
+    const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][date.getDay()];
+    const row = [
+      entry.date, dow, activityLabel(entry.activity), entry.property,
+      entry.startTime, entry.endTime, entry.hours, entry.notes,
+      entry.id, new Date(entry.createdAt).toISOString()
+    ];
+    const res = await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A:J:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
+      method:'POST',
+      headers:{Authorization:`Bearer ${state.settings.accessToken}`,'Content-Type':'application/json'},
+      body:JSON.stringify({values:[row]})
+    });
+    if(res.ok) {
+      const idx = state.entries.findIndex(e=>e.id===entry.id);
+      if(idx>=0) { state.entries[idx].synced = true; state.entries[idx].syncError = null; }
+      save(); renderSyncStatus();
+      showToast('Synced to Google Sheets ✓','success');
+    } else {
+      const err = await res.json();
+      throw new Error(err.error?.message||'Sync failed');
+    }
+  } catch(err) {
+    const idx = state.entries.findIndex(e=>e.id===entry.id);
+    if(idx>=0) { state.entries[idx].syncError = err.message; }
+    save(); renderSyncStatus();
+    showToast('Sync failed: '+err.message,'error');
+  }
+}
+
+async function forceSyncAll() {
+  const pending = state.entries.filter(e=>!e.synced);
+  if(pending.length===0){ showToast('All entries already synced ✓'); return; }
+  if(!state.settings.googleConnected || !state.settings.sheetId){
+    showToast('Connect Google Sheets first','error'); return;
+  }
+  showToast(`Syncing ${pending.length} entries…`);
+  for(const e of pending) await syncEntry(e);
+  showToast('All entries synced ✓','success');
+}
+
+// ════════════════════════════════════════════════
+// GOOGLE OAUTH
+// ════════════════════════════════════════════════
+// Uses Google Identity Services (GIS) implicit flow
+// Users need to create an OAuth 2.0 Web Client ID in Google Cloud Console
+
+const GOOGLE_CLIENT_ID_KEY = 're_google_client_id';
+
+function startGoogleOAuth() {
+  // Check if client ID is configured
+  let clientId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY);
+  if(!clientId) {
+    const id = prompt(
+      'Enter your Google OAuth Client ID.\n\n' +
+      'To get one:\n' +
+      '1. Go to console.cloud.google.com\n' +
+      '2. APIs & Services → Credentials\n' +
+      '3. Create OAuth 2.0 Client ID (Web application)\n' +
+      '4. Add this page\'s URL to Authorized JavaScript origins\n\n' +
+      'Paste Client ID here:'
+    );
+    if(!id) return;
+    clientId = id.trim();
+    localStorage.setItem(GOOGLE_CLIENT_ID_KEY, clientId);
+  }
+
+  // Load GIS if not loaded
+  if(!window.google?.accounts?.oauth2) {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = ()=>doOAuth(clientId);
+    document.head.appendChild(script);
+  } else {
+    doOAuth(clientId);
+  }
+}
+
+function doOAuth(clientId) {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: clientId,
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+    callback: async (resp) => {
+      if(resp.error) { showToast('Auth failed: '+resp.error,'error'); return; }
+      state.settings.accessToken = resp.access_token;
+      // Get user info
+      try {
+        const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',{
+          headers:{Authorization:`Bearer ${resp.access_token}`}
+        });
+        const u = await r.json();
+        state.settings.googleConnected = true;
+        state.settings.googleUser = { name: u.name, email: u.email };
+        save();
+        updateGoogleUI();
+        renderSettingsPage();
+        showToast('Google account connected ✓','success');
+      } catch(e) {
+        showToast('Could not fetch user info','error');
+      }
+    }
+  });
+  client.requestAccessToken();
+}
+
+function disconnectGoogle() {
+  if(!confirm('Disconnect your Google account? Unsynced entries will be kept locally.')) return;
+  state.settings.googleConnected = false;
+  state.settings.googleUser = null;
+  state.settings.accessToken = null;
+  save(); updateGoogleUI(); renderSettingsPage(); renderSyncStatus();
+  showToast('Google account disconnected');
+}
+
+function updateGoogleUI() {
+  const connected = state.settings.googleConnected;
+  const user = state.settings.googleUser;
+  document.getElementById('google-not-connected').style.display = connected?'none':'block';
+  document.getElementById('google-connected').style.display = connected?'block':'none';
+  if(connected && user) {
+    document.getElementById('google-avatar-initials').textContent = (user.name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('google-user-name').textContent = user.name||'Connected';
+    document.getElementById('google-user-email').textContent = user.email||'';
+  }
+  if(state.settings.sheetId) {
+    document.getElementById('sheet-id-input').value = state.settings.sheetId;
+  }
+}
+
+function openGoogleSheet(mode) {
+  updateGoogleUI();
+  openOverlay('overlay-google');
+}
+
+function openSheetPicker() {
+  updateGoogleUI();
+  openOverlay('overlay-google');
+  setTimeout(()=>document.getElementById('sheet-id-input').focus(),350);
+}
+
+async function saveSheetSettings() {
+  const id = document.getElementById('sheet-id-input').value.trim();
+  if(!id){ showToast('Paste a Sheet ID first','error'); return; }
+  // Extract ID if full URL pasted
+  const match = id.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  const sheetId = match ? match[1] : id;
+  state.settings.sheetId = sheetId;
+  save();
+
+  // Test connection
+  if(state.settings.accessToken) {
+    try {
+      const r = await fetch(`${SHEETS_API}/${sheetId}?fields=properties.title`,{
+        headers:{Authorization:`Bearer ${state.settings.accessToken}`}
+      });
+      const d = await r.json();
+      if(d.properties?.title) {
+        showToast(`Connected: "${d.properties.title}" ✓`,'success');
+        document.getElementById('sheet-name-desc').textContent = d.properties.title;
+        document.getElementById('sheets-status-desc').textContent = `Sheet: ${d.properties.title}`;
+        await ensureHeader();
+      } else {
+        showToast('Sheet ID saved (could not verify)');
+      }
+    } catch(e) {
+      showToast('Sheet ID saved — sign in to verify');
+    }
+  } else {
+    showToast('Sheet ID saved — connect Google account to sync');
+  }
+  renderSettingsPage(); renderSyncStatus();
+  closeOverlay('overlay-google');
+}
+
+function openCreateSheet() {
+  window.open('https://sheets.google.com/create', '_blank');
+}
+
+// ════════════════════════════════════════════════
+// SETTINGS SCREEN
+// ════════════════════════════════════════════════
+function renderSettingsPage() {
+  const { googleConnected, googleUser, sheetId, userName, taxYear, irsThreshold, properties } = state.settings;
+
+  // Sheets badge
+  const badge = document.getElementById('sheets-badge');
+  badge.textContent = googleConnected ? 'Connected' : 'Disconnected';
+  badge.className = 'settings-badge ' + (googleConnected ? 'badge-connected' : 'badge-disconnected');
+  document.getElementById('sheets-status-desc').textContent =
+    googleConnected && googleUser ? googleUser.email : 'Connect to auto-sync entries';
+
+  // Sheet name
+  document.getElementById('sheet-name-desc').textContent = sheetId ? 'ID: …'+sheetId.slice(-8) : 'No sheet selected';
+
+  // User
+  document.getElementById('user-name-display').textContent = userName || 'Tap to set';
+  document.getElementById('properties-desc').textContent =
+    properties.length > 0 ? properties.slice(0,3).join(', ') + (properties.length>3?'…':'') : 'Add your properties for quick selection';
+
+  // Tax
+  document.getElementById('tax-year-desc').textContent = taxYear;
+  document.getElementById('irs-threshold-desc').textContent = `${irsThreshold} hours (RE professional status)`;
+}
+
+function openEditName() {
+  document.getElementById('name-input').value = state.settings.userName;
+  openOverlay('overlay-name');
+}
+function saveName() {
+  state.settings.userName = document.getElementById('name-input').value.trim();
+  save(); closeOverlay('overlay-name'); renderSettingsPage();
+  showToast('Name saved ✓','success');
+}
+
+function openEditProperties() {
+  renderPropertiesList();
+  openOverlay('overlay-properties');
+}
+function renderPropertiesList() {
+  const list = document.getElementById('properties-list');
+  list.innerHTML = state.settings.properties.length===0
+    ? '<div class="text-muted text-sm" style="padding:8px 0">No properties added yet.</div>'
+    : state.settings.properties.map((p,i)=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray1)">
+        <span style="font-size:14px">🏠 ${p}</span>
+        <button onclick="removeProperty(${i})" style="border:none;background:none;color:var(--gray3);font-size:18px;cursor:pointer">✕</button>
+      </div>
+    `).join('');
+}
+function addProperty() {
+  const val = document.getElementById('new-property-input').value.trim();
+  if(!val) return;
+  state.settings.properties.push(val);
+  document.getElementById('new-property-input').value = '';
+  save(); renderPropertiesList(); renderSettingsPage();
+}
+function removeProperty(i) {
+  state.settings.properties.splice(i,1);
+  save(); renderPropertiesList(); renderSettingsPage();
+}
+
+function openTaxYear() {
+  const y = prompt('Enter tax year:', state.settings.taxYear);
+  if(y && !isNaN(y)) { state.settings.taxYear=parseInt(y); save(); renderSettingsPage(); renderAll(); showToast('Tax year updated'); }
+}
+function openIrsThreshold() {
+  const h = prompt('IRS hour threshold (default 750):', state.settings.irsThreshold);
+  if(h && !isNaN(h)) { state.settings.irsThreshold=parseInt(h); save(); renderSettingsPage(); showToast('Threshold updated'); }
+}
+
+// ════════════════════════════════════════════════
+// REPORT SCREEN
+// ════════════════════════════════════════════════
+function renderReport() {
+  const year = state.settings.taxYear;
+  const threshold = state.settings.irsThreshold;
+  const yearEntries = state.entries.filter(e=>e.date&&e.date.startsWith(String(year)));
+  const totalHrs = yearEntries.reduce((s,e)=>s+(e.hours||0),0);
+
+  document.getElementById('report-year-label').textContent = year;
+  document.getElementById('report-total-hrs').textContent = totalHrs.toFixed(1);
+  const pct = Math.min(100,(totalHrs/threshold)*100);
+  document.getElementById('irs-bar').style.width = pct.toFixed(1)+'%';
+  document.getElementById('irs-pct-label').textContent = pct.toFixed(0)+'% of IRS threshold met';
+
+  // Monthly
+  const monthly = {};
+  for(let m=0;m<12;m++) monthly[m]=0;
+  yearEntries.forEach(e=>{ const m=parseInt(e.date.slice(5,7))-1; monthly[m]+=(e.hours||0); });
+  const monthList = document.getElementById('monthly-report-list');
+  const activeMonths = Object.entries(monthly).filter(([,h])=>h>0);
+  if(activeMonths.length===0){
+    monthList.innerHTML='<div class="text-muted text-sm" style="text-align:center;padding:20px 0">No entries logged yet</div>';
+  } else {
+    const maxH = Math.max(...Object.values(monthly));
+    monthList.innerHTML = activeMonths.map(([m,h])=>`
+      <div class="report-row">
+        <div>
+          <div class="report-activity">${MONTH_SHORT[m]}</div>
+          <div class="progress-bar" style="width:140px"><div class="progress-fill" style="width:${maxH>0?(h/maxH*100).toFixed(0):0}%"></div></div>
+        </div>
+        <div class="report-hrs">${h.toFixed(1)} hrs</div>
+      </div>
+    `).join('');
+  }
+
+  // By activity
+  const byAct = {};
+  ACTIVITIES.forEach(a=>byAct[a.id]=0);
+  yearEntries.forEach(e=>{ if(byAct[e.activity]!==undefined) byAct[e.activity]+=(e.hours||0); });
+  const actList = document.getElementById('activity-report-list');
+  const activeActs = Object.entries(byAct).filter(([,h])=>h>0).sort((a,b)=>b[1]-a[1]);
+  if(activeActs.length===0){
+    actList.innerHTML='<div class="text-muted text-sm" style="text-align:center;padding:20px 0">No entries logged yet</div>';
+  } else {
+    actList.innerHTML = activeActs.map(([id,h])=>`
+      <div class="report-row">
+        <div>
+          <div class="report-activity">${activityIcon(id)} ${activityLabel(id)}</div>
+          <div class="report-pct">${totalHrs>0?((h/totalHrs)*100).toFixed(0):0}% of total</div>
+        </div>
+        <div class="report-hrs">${h.toFixed(1)} hrs</div>
+      </div>
+    `).join('');
+  }
+}
+
+// ════════════════════════════════════════════════
+// CSV EXPORT
+// ════════════════════════════════════════════════
+function exportCSV() {
+  const rows = [HEADER_ROW.join(',')];
+  state.entries.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
+    const date = new Date(e.date+'T12:00:00');
+    const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][date.getDay()];
+    rows.push([
+      e.date, dow, activityLabel(e.activity),
+      `"${(e.property||'').replace(/"/g,'""')}"`,
+      e.startTime, e.endTime, e.hours,
+      `"${(e.notes||'').replace(/"/g,'""')}"`,
+      e.id, new Date(e.createdAt).toISOString()
+    ].join(','));
+  });
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`RE_Time_Log_${state.settings.taxYear}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('CSV downloaded ✓','success');
+}
+
+function clearAllData() {
+  if(!confirm('Clear ALL local entries? Data in Google Sheets is preserved.')) return;
+  if(!confirm('Are you sure? This cannot be undone.')) return;
+  state.entries = [];
+  save(); renderAll();
+  showToast('All local data cleared');
+}
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+load();
+renderAll();
+renderSettingsPage();
+
+// Scroll calendar to today
+setTimeout(()=>{
+  const today = document.querySelector('.cal-day.today');
+  if(today) today.scrollIntoView({block:'nearest',inline:'center'});
+},200);
+
+// Auto-sync pending entries on startup
+if(state.settings.googleConnected && state.settings.sheetId && state.settings.accessToken) {
+  const pending = state.entries.filter(e=>!e.synced);
+  if(pending.length>0) {
+    setTimeout(()=>{
+      pending.forEach(e=>syncEntry(e));
+    }, 1500);
+  }
+}
+
+// Make enter key work in property input
+document.getElementById('new-property-input').addEventListener('keydown', e=>{
+  if(e.key==='Enter') addProperty();
+});
+
+// ════════════════════════════════════════════════
+// PWA: SERVICE WORKER REGISTRATION
+// ════════════════════════════════════════════════
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=>console.log('SW failed:',e));
+  });
+}
+
+// Optional: capture install prompt to show a custom "Install App" button later if desired
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+});
+
+</script>
+</body>
+</html>
