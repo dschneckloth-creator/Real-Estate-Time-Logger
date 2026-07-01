@@ -1185,28 +1185,18 @@ async function forceSyncAll() {
 const GOOGLE_CLIENT_ID_KEY = 're_google_client_id';
 
 function startGoogleOAuth() {
-  // Check if client ID is configured
   let clientId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY);
   if(!clientId) {
-    const id = prompt(
-      'Enter your Google OAuth Client ID.\n\n' +
-      'To get one:\n' +
-      '1. Go to console.cloud.google.com\n' +
-      '2. APIs & Services → Credentials\n' +
-      '3. Create OAuth 2.0 Client ID (Web application)\n' +
-      '4. Add this page\'s URL to Authorized JavaScript origins\n\n' +
-      'Paste Client ID here:'
-    );
+    const id = prompt('Paste your Google OAuth Client ID here:\n(ends with .apps.googleusercontent.com)');
     if(!id) return;
     clientId = id.trim();
     localStorage.setItem(GOOGLE_CLIENT_ID_KEY, clientId);
   }
-
-  // Load GIS if not loaded
   if(!window.google?.accounts?.oauth2) {
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
     script.onload = ()=>doOAuth(clientId);
+    script.onerror = ()=>showToast('Failed to load Google auth','error');
     document.head.appendChild(script);
   } else {
     doOAuth(clientId);
@@ -1214,30 +1204,41 @@ function startGoogleOAuth() {
 }
 
 function doOAuth(clientId) {
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: clientId,
-    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
-    callback: async (resp) => {
-      if(resp.error) { showToast('Auth failed: '+resp.error,'error'); return; }
-      state.settings.accessToken = resp.access_token;
-      // Get user info
-      try {
-        const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',{
-          headers:{Authorization:`Bearer ${resp.access_token}`}
-        });
-        const u = await r.json();
-        state.settings.googleConnected = true;
-        state.settings.googleUser = { name: u.name, email: u.email };
-        save();
-        updateGoogleUI();
-        renderSettingsPage();
-        showToast('Google account connected ✓','success');
-      } catch(e) {
-        showToast('Could not fetch user info','error');
+  try {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      callback: async (resp) => {
+        if(resp.error) {
+          showToast('Auth failed: ' + resp.error, 'error');
+          if(resp.error === 'origin_mismatch' || resp.error === 'idpiframe_initialization_failed') {
+            localStorage.removeItem(GOOGLE_CLIENT_ID_KEY);
+            alert('Origin mismatch. Make sure your Google Console has:\nhttps://dschneckloth-creator.github.io\n(no trailing slash, no path)');
+          }
+          return;
+        }
+        state.settings.accessToken = resp.access_token;
+        try {
+          const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: 'Bearer ' + resp.access_token }
+          });
+          const u = await r.json();
+          state.settings.googleConnected = true;
+          state.settings.googleUser = { name: u.name, email: u.email };
+          save();
+          updateGoogleUI();
+          renderSettingsPage();
+          showToast('Google account connected!', 'success');
+        } catch(e) {
+          showToast('Connected but could not get profile info', 'error');
+        }
       }
-    }
-  });
-  client.requestAccessToken();
+    });
+    client.requestAccessToken({ prompt: 'select_account' });
+  } catch(err) {
+    showToast('Auth setup error: ' + err.message, 'error');
+    localStorage.removeItem(GOOGLE_CLIENT_ID_KEY);
+  }
 }
 
 function disconnectGoogle() {
