@@ -757,12 +757,88 @@ let state = {
 // ════════════════════════════════════════════════
 // PERSISTENCE
 // ════════════════════════════════════════════════
-function save() {
+// ════════════════════════════════════════════════
+// INDEXEDDB — survives cache clears, much more robust than localStorage
+// ════════════════════════════════════════════════
+let db = null;
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('RETimeLogger', 2);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('entries')) {
+        d.createObjectStore('entries', { keyPath: 'id' });
+      }
+      if (!d.objectStoreNames.contains('settings')) {
+        d.createObjectStore('settings', { keyPath: 'key' });
+      }
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbSaveEntries() {
+  if (!db) return;
+  const tx = db.transaction('entries', 'readwrite');
+  const store = tx.objectStore('entries');
+  store.clear();
+  state.entries.forEach(e => store.put(e));
+  // Also keep localStorage as backup
   try { localStorage.setItem('re_entries', JSON.stringify(state.entries)); } catch(e){}
+}
+
+function dbSaveSettings() {
+  if (!db) return;
+  const tx = db.transaction('settings', 'readwrite');
+  const store = tx.objectStore('settings');
+  store.put({ key: 'main', value: state.settings });
   try { localStorage.setItem('re_settings', JSON.stringify(state.settings)); } catch(e){}
 }
 
+function save() {
+  dbSaveEntries();
+  dbSaveSettings();
+}
+
+function dbLoadAll() {
+  return new Promise((resolve) => {
+    if (!db) { resolve(); return; }
+    const tx = db.transaction(['entries', 'settings'], 'readonly');
+
+    const entriesReq = tx.objectStore('entries').getAll();
+    entriesReq.onsuccess = () => {
+      if (entriesReq.result && entriesReq.result.length > 0) {
+        state.entries = entriesReq.result;
+      } else {
+        // Fall back to localStorage
+        try {
+          const e = localStorage.getItem('re_entries');
+          if (e) { state.entries = JSON.parse(e); dbSaveEntries(); }
+        } catch(e){}
+      }
+    };
+
+    const settingsReq = tx.objectStore('settings').get('main');
+    settingsReq.onsuccess = () => {
+      if (settingsReq.result && settingsReq.result.value) {
+        state.settings = Object.assign(state.settings, settingsReq.result.value);
+      } else {
+        try {
+          const s = localStorage.getItem('re_settings');
+          if (s) { state.settings = Object.assign(state.settings, JSON.parse(s)); dbSaveSettings(); }
+        } catch(e){}
+      }
+    };
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
+
 function load() {
+  // Synchronous fallback from localStorage only (used before DB is ready)
   try {
     const e = localStorage.getItem('re_entries');
     if (e) state.entries = JSON.parse(e);
@@ -771,6 +847,56 @@ function load() {
     const s = localStorage.getItem('re_settings');
     if (s) state.settings = Object.assign(state.settings, JSON.parse(s));
   } catch(e){}
+}
+
+// ════════════════════════════════════════════════
+// GOOGLE SHEETS → APP: Import entries on startup
+// ════════════════════════════════════════════════
+async function importFromSheets() {
+  if (!state.settings.accessToken || !state.settings.sheetId) return;
+  try {
+    const res = await fetch(
+      `${SHEETS_API}/${state.settings.sheetId}/values/A2:J5000`,
+      { headers: { Authorization: `Bearer ${state.settings.accessToken}` } }
+    );
+    if (!res.ok) return;
+    const data = await res.json();
+    const rows = data.values;
+    if (!rows || rows.length === 0) return;
+
+    let imported = 0;
+    rows.forEach(row => {
+      const entryId = row[8]; // Column I = Entry ID
+      if (!entryId) return;
+      // Only add if not already in local state
+      if (!state.entries.find(e => e.id === entryId)) {
+        const actLabel = row[2] || '';
+        const actObj = ACTIVITIES.find(a => a.label === actLabel);
+        state.entries.push({
+          id: entryId,
+          date: row[0] || '',
+          activity: actObj ? actObj.id : 'meeting',
+          property: row[3] || '',
+          startTime: row[4] || '',
+          endTime: row[5] || '',
+          hours: parseFloat(row[6]) || 0,
+          notes: row[7] || '',
+          createdAt: row[9] ? new Date(row[9]).getTime() : Date.now(),
+          synced: true,
+          syncError: null,
+        });
+        imported++;
+      }
+    });
+
+    if (imported > 0) {
+      save();
+      renderAll();
+      showToast(`Loaded ${imported} entries from Google Sheets ✓`, 'success');
+    }
+  } catch(e) {
+    console.log('Sheet import error:', e);
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -1476,27 +1602,46 @@ function clearAllData() {
 }
 
 // ════════════════════════════════════════════════
-// INIT
 // ════════════════════════════════════════════════
-load();
-renderAll();
-renderSettingsPage();
+// INIT — IndexedDB first, then render, then sync from Sheets
+// ════════════════════════════════════════════════
+async function appInit() {
+  // 1. Quick render from localStorage so screen isn't blank
+  load();
+  renderAll();
+  renderSettingsPage();
 
-// Scroll calendar to today
-setTimeout(()=>{
-  const today = document.querySelector('.cal-day.today');
-  if(today) today.scrollIntoView({block:'nearest',inline:'center'});
-},200);
+  // 2. Scroll calendar to today
+  setTimeout(()=>{
+    const today = document.querySelector('.cal-day.today');
+    if(today) today.scrollIntoView({block:'nearest',inline:'center'});
+  }, 200);
 
-// Auto-sync pending entries on startup
-if(state.settings.googleConnected && state.settings.sheetId && state.settings.accessToken) {
-  const pending = state.entries.filter(e=>!e.synced);
-  if(pending.length>0) {
-    setTimeout(()=>{
-      pending.forEach(e=>syncEntry(e));
-    }, 1500);
+  // 3. Open IndexedDB and load from it (more reliable than localStorage)
+  try {
+    await initDB();
+    await dbLoadAll();
+    renderAll();
+    renderSettingsPage();
+  } catch(e) {
+    console.log('IndexedDB init failed, using localStorage only:', e);
+  }
+
+  // 4. If connected to Google Sheets, import any entries from the sheet
+  //    This recovers data even if local storage was cleared
+  if(state.settings.googleConnected && state.settings.sheetId && state.settings.accessToken) {
+    setTimeout(async () => {
+      await importFromSheets();
+      // Also sync any pending local entries up to the sheet
+      const pending = state.entries.filter(e => !e.synced);
+      if(pending.length > 0) {
+        for(const e of pending) await syncEntry(e);
+      }
+    }, 2000);
   }
 }
+
+appInit();
 
 // Make enter key work in property input
 document.getElementById('new-property-input').addEventListener('keydown', e=>{
