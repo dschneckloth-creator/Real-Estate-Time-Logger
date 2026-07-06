@@ -1241,17 +1241,17 @@ async function saveEntry() {
 const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 const HEADER_ROW = ['Date','Day of Week','Activity Type','Property/Project','Start Time','End Time','Hours','Notes','Entry ID','Logged At'];
 
-async function ensureHeader() {
-  if(!state.settings.sheetId || !state.settings.accessToken) return;
+async function ensureHeader(token) {
+  if(!state.settings.sheetId || !token) return;
   try {
     const r = await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A1:J1`,{
-      headers:{Authorization:`Bearer ${state.settings.accessToken}`}
+      headers:{Authorization:`Bearer ${token}`}
     });
     const d = await r.json();
     if(!d.values || !d.values[0] || d.values[0][0]!=='Date') {
       await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A1:J1?valueInputOption=RAW`,{
         method:'PUT',
-        headers:{Authorization:`Bearer ${state.settings.accessToken}`,'Content-Type':'application/json'},
+        headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
         body:JSON.stringify({values:[HEADER_ROW]})
       });
     }
@@ -1259,8 +1259,17 @@ async function ensureHeader() {
 }
 
 async function syncEntry(entry) {
-  if(!state.settings.accessToken || !state.settings.sheetId) return;
-  await ensureHeader();
+  if(!state.settings.sheetId) return;
+
+  // Get a valid (auto-refreshed if needed) token before syncing
+  const token = await getValidToken();
+  if(!token) {
+    showToast('Sign in to Google to sync','error');
+    renderSyncStatus();
+    return;
+  }
+
+  await ensureHeader(token);
   try {
     const date = new Date(entry.date+'T12:00:00');
     const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][date.getDay()];
@@ -1271,7 +1280,7 @@ async function syncEntry(entry) {
     ];
     const res = await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A:J:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
       method:'POST',
-      headers:{Authorization:`Bearer ${state.settings.accessToken}`,'Content-Type':'application/json'},
+      headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({values:[row]})
     });
     if(res.ok) {
@@ -1280,14 +1289,18 @@ async function syncEntry(entry) {
       save(); renderSyncStatus();
       showToast('Synced to Google Sheets ✓','success');
     } else {
-      const err = await res.json();
-      throw new Error(err.error?.message||'Sync failed');
+      const d = await res.json();
+      throw new Error(d.error?.message||'Sync failed');
     }
   } catch(err) {
     const idx = state.entries.findIndex(e=>e.id===entry.id);
     if(idx>=0) { state.entries[idx].syncError = err.message; }
     save(); renderSyncStatus();
-    showToast('Sync failed: '+err.message,'error');
+    if(err.message.includes('fetch')) {
+      showToast('No internet — entry saved locally, will sync when online','error');
+    } else {
+      showToast('Sync failed: '+err.message,'error');
+    }
   }
 }
 
@@ -1309,6 +1322,69 @@ async function forceSyncAll() {
 // Users need to create an OAuth 2.0 Web Client ID in Google Cloud Console
 
 const GOOGLE_CLIENT_ID_KEY = 're_google_client_id';
+
+// Token expiry tracking
+let tokenExpiresAt = 0; // timestamp in ms
+let tokenRefreshPromise = null; // prevent parallel refresh calls
+
+// Returns a valid access token, silently refreshing if expired
+async function getValidToken() {
+  // If token is still good for at least 2 minutes, use it
+  if(state.settings.accessToken && Date.now() < tokenExpiresAt - 120000) {
+    return state.settings.accessToken;
+  }
+  // If already refreshing, wait for that promise
+  if(tokenRefreshPromise) return tokenRefreshPromise;
+
+  const clientId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY);
+  if(!clientId || !state.settings.googleConnected) return null;
+
+  // Silent token refresh using GIS
+  tokenRefreshPromise = new Promise((resolve) => {
+    const tryRefresh = () => {
+      if(!window.google?.accounts?.oauth2) {
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.onload = () => doSilentRefresh(clientId, resolve);
+        script.onerror = () => { tokenRefreshPromise = null; resolve(null); };
+        document.head.appendChild(script);
+      } else {
+        doSilentRefresh(clientId, resolve);
+      }
+    };
+    tryRefresh();
+  });
+
+  const token = await tokenRefreshPromise;
+  tokenRefreshPromise = null;
+  return token;
+}
+
+function doSilentRefresh(clientId, resolve) {
+  try {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+      prompt: '', // empty string = silent refresh, no popup if session active
+      callback: (resp) => {
+        if(resp.error || !resp.access_token) {
+          // Silent refresh failed — will need manual sign-in
+          resolve(state.settings.accessToken || null);
+          return;
+        }
+        state.settings.accessToken = resp.access_token;
+        tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000);
+        tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000);
+        save();
+        renderSyncStatus();
+        resolve(resp.access_token);
+      }
+    });
+    client.requestAccessToken({ prompt: '' });
+  } catch(e) {
+    resolve(state.settings.accessToken || null);
+  }
+}
 
 function startGoogleOAuth() {
   let clientId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY);
