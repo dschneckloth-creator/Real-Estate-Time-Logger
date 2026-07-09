@@ -614,58 +614,70 @@ html,body{height:100%;background:var(--gray0);font-family:'Inter',sans-serif;fon
 <div class="overlay" id="overlay-google">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">Google Sheets setup</div>
+    <div class="sheet-title">Google Sheets sync</div>
     <div class="sheet-body">
 
-      <div id="google-not-connected">
-        <div style="text-align:center;margin-bottom:20px">
-          <div style="font-size:48px;margin-bottom:8px">📊</div>
-          <div style="font-size:15px;font-weight:600;margin-bottom:6px">Connect Google Sheets</div>
-          <div style="font-size:13px;color:var(--gray4);line-height:1.5">Every time entry will be automatically saved to a Google Sheet for tax record keeping.</div>
-        </div>
-
-        <button class="google-btn" onclick="startGoogleOAuth()">
-          <svg class="google-logo" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3c-1.5 4-5.4 7-11.3 7a12 12 0 010-24c3.1 0 5.8 1.1 8 2.9l5.7-5.7A20 20 0 1044 24c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8A12 12 0 0124 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7A20 20 0 006.3 14.7z"/><path fill="#4CAF50" d="M24 44a20 20 0 0013.4-5.2l-6.2-5.2A12 12 0 0124 36c-5.8 0-10.8-4-11.3-9.4l-6.6 4.8A20 20 0 0024 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3a12 12 0 01-4.4 5.6l6.2 5.2C40.8 36.4 44 30.6 44 24c0-1.4-.1-2.7-.4-4z"/></svg>
-          Sign in with Google
-        </button>
-
-        <div class="oauth-info">
-          <strong>How it works:</strong><br>
-          1. Tap "Sign in with Google" — your browser opens Google's login page.<br>
-          2. Authorize access to Google Sheets (read/write).<br>
-          3. Paste your Sheet ID below, or create a new sheet.<br>
-          4. Every entry syncs automatically in the background.
+      <!-- STATUS BANNER -->
+      <div id="gsync-status-banner" style="border-radius:10px;padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+        <span id="gsync-status-icon" style="font-size:28px">⏳</span>
+        <div>
+          <div id="gsync-status-title" style="font-size:14px;font-weight:600">Checking status…</div>
+          <div id="gsync-status-desc" style="font-size:12px;margin-top:2px"></div>
         </div>
       </div>
 
-      <div id="google-connected" style="display:none">
-        <div class="connected-user">
-          <div class="connected-avatar" id="google-avatar-initials">?</div>
-          <div class="connected-info-text">
-            <div class="connected-name" id="google-user-name">Connected</div>
-            <div class="connected-email" id="google-user-email"></div>
+      <!-- STEP 1: SIGN IN -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--gray3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Step 1 — Google account</div>
+        <div id="google-not-connected">
+          <button class="google-btn" onclick="startGoogleOAuth()">
+            <svg class="google-logo" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3c-1.5 4-5.4 7-11.3 7a12 12 0 010-24c3.1 0 5.8 1.1 8 2.9l5.7-5.7A20 20 0 1044 24c0-1.4-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8A12 12 0 0124 12c3.1 0 5.8 1.1 8 2.9l5.7-5.7A20 20 0 006.3 14.7z"/><path fill="#4CAF50" d="M24 44a20 20 0 0013.4-5.2l-6.2-5.2A12 12 0 0124 36c-5.8 0-10.8-4-11.3-9.4l-6.6 4.8A20 20 0 0024 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3a12 12 0 01-4.4 5.6l6.2 5.2C40.8 36.4 44 30.6 44 24c0-1.4-.1-2.7-.4-4z"/></svg>
+            Sign in with Google
+          </button>
+        </div>
+        <div id="google-connected" style="display:none">
+          <div class="connected-user">
+            <div class="connected-avatar" id="google-avatar-initials">?</div>
+            <div class="connected-info-text">
+              <div class="connected-name" id="google-user-name">Connected</div>
+              <div class="connected-email" id="google-user-email"></div>
+            </div>
+            <span style="color:var(--green);font-size:22px">✓</span>
           </div>
-          <span style="color:var(--green);font-size:20px">✓</span>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-gold btn-sm" onclick="refreshTokenAndSync()" style="flex:1">🔄 Refresh &amp; sync now</button>
+            <button class="btn btn-danger btn-sm" onclick="disconnectGoogle()">Disconnect</button>
+          </div>
         </div>
-        <button class="btn btn-danger btn-sm" onclick="disconnectGoogle()" style="margin-bottom:16px">Disconnect Google account</button>
       </div>
 
-      <!-- Sheet ID section (always shown once connected, or can be set manually) -->
-      <div class="sheet-id-area">
-        <div class="form-group" style="margin-bottom:8px">
-          <label class="form-label">Google Sheet ID</label>
-          <input type="text" class="form-input" id="sheet-id-input" placeholder="Paste your Google Sheet ID here">
+      <div class="divider"></div>
+
+      <!-- STEP 2: SHEET ID -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:600;color:var(--gray3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Step 2 — Google Sheet</div>
+        <div class="form-group" style="margin-bottom:6px">
+          <input type="text" class="form-input" id="sheet-id-input" placeholder="Paste Sheet ID or full URL">
         </div>
-        <div style="font-size:12px;color:var(--gray4);line-height:1.5;margin-bottom:12px">
-          Find it in your sheet URL:<br>
-          <code style="font-size:11px;background:var(--gray1);padding:2px 6px;border-radius:4px">docs.google.com/spreadsheets/d/<strong style="color:var(--navy)">SHEET_ID_HERE</strong>/edit</code>
+        <div style="font-size:11px;color:var(--gray4);line-height:1.5;margin-bottom:10px">
+          From your sheet URL: docs.google.com/spreadsheets/d/<strong style="color:var(--navy)">THIS-PART</strong>/edit
         </div>
-        <button class="btn btn-gold" onclick="openCreateSheet()">Create a new sheet for me ↗</button>
-        <div style="margin-top:8px"></div>
-        <button class="btn btn-primary" onclick="saveSheetSettings()">Save & test connection</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="saveSheetSettings()" style="flex:1">Save Sheet ID</button>
+          <button class="btn btn-secondary btn-sm" onclick="openCreateSheet()">Create new ↗</button>
+        </div>
       </div>
 
-      <button class="btn btn-secondary" onclick="closeOverlay('overlay-google')" style="margin-top:8px">Close</button>
+      <div class="divider"></div>
+
+      <!-- PENDING ENTRIES -->
+      <div id="gsync-pending-section" style="margin-bottom:16px;display:none">
+        <div style="font-size:11px;font-weight:600;color:var(--gray3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Pending entries</div>
+        <div id="gsync-pending-list"></div>
+        <button class="btn btn-primary" onclick="refreshTokenAndSync()" style="margin-top:8px">🔄 Sign in &amp; sync all now</button>
+      </div>
+
+      <button class="btn btn-secondary" onclick="closeOverlay('overlay-google')" style="margin-top:4px">Close</button>
     </div>
   </div>
 </div>
@@ -1436,7 +1448,7 @@ function doOAuth(clientId) {
         }
       }
     });
-    client.requestAccessToken({ prompt: 'select_account' });
+    client.requestAccessToken({ prompt: '' });
   } catch(err) {
     showToast('Auth setup error: ' + err.message, 'error');
     localStorage.removeItem(GOOGLE_CLIENT_ID_KEY);
@@ -1465,15 +1477,18 @@ function updateGoogleUI() {
   if(state.settings.sheetId) {
     document.getElementById('sheet-id-input').value = state.settings.sheetId;
   }
+  updateGoogleSyncPanel();
 }
 
 function openGoogleSheet(mode) {
   updateGoogleUI();
+  updateGoogleSyncPanel();
   openOverlay('overlay-google');
 }
 
 function openSheetPicker() {
   updateGoogleUI();
+  updateGoogleSyncPanel();
   openOverlay('overlay-google');
   setTimeout(()=>document.getElementById('sheet-id-input').focus(),350);
 }
@@ -1481,35 +1496,147 @@ function openSheetPicker() {
 async function saveSheetSettings() {
   const id = document.getElementById('sheet-id-input').value.trim();
   if(!id){ showToast('Paste a Sheet ID first','error'); return; }
-  // Extract ID if full URL pasted
   const match = id.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   const sheetId = match ? match[1] : id;
   state.settings.sheetId = sheetId;
   save();
+  document.getElementById('sheet-id-input').value = sheetId;
+  renderSettingsPage();
+  renderSyncStatus();
+  updateGoogleSyncPanel();
 
-  // Test connection
-  if(state.settings.accessToken) {
+  // If we have a valid token, verify immediately
+  if(state.settings.accessToken && Date.now() < tokenExpiresAt - 30000) {
     try {
-      const r = await fetch(`${SHEETS_API}/${sheetId}?fields=properties.title`,{
-        headers:{Authorization:`Bearer ${state.settings.accessToken}`}
+      const r = await fetch(`${SHEETS_API}/${sheetId}?fields=properties.title`, {
+        headers: { Authorization: `Bearer ${state.settings.accessToken}` }
       });
       const d = await r.json();
       if(d.properties?.title) {
-        showToast(`Connected: "${d.properties.title}" ✓`,'success');
+        showToast(`Connected: "${d.properties.title}" ✓`, 'success');
         document.getElementById('sheet-name-desc').textContent = d.properties.title;
-        document.getElementById('sheets-status-desc').textContent = `Sheet: ${d.properties.title}`;
-        await ensureHeader();
-      } else {
-        showToast('Sheet ID saved (could not verify)');
+        await ensureHeader(state.settings.accessToken);
+        return;
       }
-    } catch(e) {
-      showToast('Sheet ID saved — sign in to verify');
-    }
-  } else {
-    showToast('Sheet ID saved — connect Google account to sync');
+    } catch(e){}
   }
-  renderSettingsPage(); renderSyncStatus();
-  closeOverlay('overlay-google');
+  // Token expired or missing — show helpful message and offer to sign in + sync
+  showToast('Sheet ID saved — tap "Sign in & Sync" to connect', 'success');
+}
+
+// Refresh token then immediately sync all pending entries
+async function refreshTokenAndSync() {
+  const clientId = localStorage.getItem(GOOGLE_CLIENT_ID_KEY);
+  if(!clientId) { showToast('No Client ID saved — tap Sign in first','error'); return; }
+  if(!state.settings.sheetId) { showToast('Save your Sheet ID first','error'); return; }
+
+  showToast('Getting fresh Google token…');
+  if(!window.google?.accounts?.oauth2) {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    document.head.appendChild(script);
+    await new Promise(r => script.onload = r);
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+        callback: async (resp) => {
+          if(resp.error) { reject(new Error(resp.error)); return; }
+          state.settings.accessToken = resp.access_token;
+          tokenExpiresAt = Date.now() + ((resp.expires_in || 3600) * 1000);
+          state.settings.googleConnected = true;
+          // Refresh user info if missing
+          if(!state.settings.googleUser) {
+            try {
+              const r = await fetch('https://www.googleapis.com/oauth2/v2/userinfo',
+                { headers: { Authorization: 'Bearer ' + resp.access_token } });
+              const u = await r.json();
+              state.settings.googleUser = { name: u.name, email: u.email };
+            } catch(e){}
+          }
+          save();
+          updateGoogleUI();
+          updateGoogleSyncPanel();
+          resolve();
+        }
+      });
+      client.requestAccessToken({ prompt: '' }); // empty = reuse existing Google session, no popup if already signed in
+    });
+
+    // Now sync all pending
+    const pending = state.entries.filter(e => !e.synced);
+    if(pending.length === 0) {
+      showToast('All entries already synced ✓','success');
+    } else {
+      showToast(`Syncing ${pending.length} entries…`);
+      for(const e of pending) await syncEntry(e);
+      showToast(`Synced ${pending.length} entries ✓`,'success');
+    }
+    updateGoogleSyncPanel();
+    renderSyncStatus();
+    renderAll();
+
+  } catch(err) {
+    showToast('Sign in failed: ' + err.message, 'error');
+  }
+}
+
+// Update the sync panel status banner and pending list
+function updateGoogleSyncPanel() {
+  const connected = state.settings.googleConnected;
+  const hasSheet = !!state.settings.sheetId;
+  const pending = state.entries.filter(e => !e.synced);
+  const banner = document.getElementById('gsync-status-banner');
+  const icon = document.getElementById('gsync-status-icon');
+  const title = document.getElementById('gsync-status-title');
+  const desc = document.getElementById('gsync-status-desc');
+  const pendingSection = document.getElementById('gsync-pending-section');
+  const pendingList = document.getElementById('gsync-pending-list');
+  if(!banner) return;
+
+  if(!connected || !hasSheet) {
+    banner.style.background = '#fde8e8';
+    icon.textContent = '⚠️';
+    title.textContent = 'Not fully set up';
+    title.style.color = 'var(--red)';
+    desc.textContent = !connected ? 'Sign in to Google below' : 'Paste your Sheet ID below';
+    desc.style.color = 'var(--gray4)';
+  } else if(pending.length > 0) {
+    banner.style.background = '#fef3c7';
+    icon.textContent = '🔄';
+    title.textContent = `${pending.length} entr${pending.length===1?'y':'ies'} waiting to sync`;
+    title.style.color = '#92400e';
+    desc.textContent = 'Tap "Refresh & sync now" to push them to Google Sheets';
+    desc.style.color = '#78350f';
+  } else {
+    banner.style.background = 'var(--green-bg)';
+    icon.textContent = '✅';
+    title.textContent = 'All entries synced';
+    title.style.color = 'var(--green)';
+    desc.textContent = state.settings.googleUser ? 'Logged in as ' + state.settings.googleUser.email : '';
+    desc.style.color = 'var(--gray4)';
+  }
+
+  // Sheet ID input
+  if(state.settings.sheetId) {
+    document.getElementById('sheet-id-input').value = state.settings.sheetId;
+  }
+
+  // Pending entries list
+  if(pending.length > 0 && connected && hasSheet) {
+    pendingSection.style.display = 'block';
+    pendingList.innerHTML = pending.slice(0,5).map(e => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--gray1);font-size:13px">
+        <span>${activityIcon(e.activity)} ${activityLabel(e.activity)} — ${fmtDateShort(e.date)}</span>
+        <span style="font-weight:600;color:var(--navy)">${e.hours}h</span>
+      </div>
+    `).join('') + (pending.length > 5 ? `<div style="font-size:12px;color:var(--gray4);padding:6px 0">…and ${pending.length-5} more</div>` : '');
+  } else {
+    pendingSection.style.display = 'none';
+  }
 }
 
 function openCreateSheet() {
@@ -1732,6 +1859,20 @@ if('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(e=>console.log('SW failed:',e));
   });
 }
+
+// Auto-sync when app comes back into focus (e.g. user returns to app)
+document.addEventListener('visibilitychange', async () => {
+  if(document.visibilityState === 'visible') {
+    const pending = state.entries.filter(e => !e.synced);
+    if(pending.length > 0 && state.settings.googleConnected && state.settings.sheetId) {
+      // Try silent sync - getValidToken handles refresh
+      const token = await getValidToken();
+      if(token) {
+        for(const e of pending) await syncEntry(e);
+      }
+    }
+  }
+});
 
 // Optional: capture install prompt to show a custom "Install App" button later if desired
 let deferredInstallPrompt = null;
