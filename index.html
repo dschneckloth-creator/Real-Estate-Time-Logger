@@ -1290,7 +1290,7 @@ async function syncEntry(entry) {
       entry.startTime, entry.endTime, entry.hours, entry.notes,
       entry.id, new Date(entry.createdAt).toISOString()
     ];
-    const res = await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A:J:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,{
+    const res = await fetch(`${SHEETS_API}/${state.settings.sheetId}/values/A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{
       method:'POST',
       headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
       body:JSON.stringify({values:[row]})
